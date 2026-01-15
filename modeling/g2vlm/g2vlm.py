@@ -1530,6 +1530,13 @@ class G2VLM(PreTrainedModel):
                 tmp_save[k] = v.to(device)
         with torch.amp.autocast("cuda", enabled=True, dtype=torch.bfloat16):
             past_key_values, last_hidden_state = self.forward_cache_update_dino(past_key_values, **generation_input)
+        
+        with torch.amp.autocast("cuda", enabled=True, dtype=torch.bfloat16):
+            recon_dict = self.reconstruct(
+                past_key_values=past_key_values, 
+                selected_hidden_states=last_hidden_state,
+                **tmp_save
+             )
             
         for image in images:
 
@@ -1579,6 +1586,6 @@ class G2VLM(PreTrainedModel):
         
         # skip the start token
         output = tokenizer.decode(unpacked_latent[1:,0])
-        return output
+        return output, recon_dict
 
  

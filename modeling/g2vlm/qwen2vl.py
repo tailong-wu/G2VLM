@@ -1036,6 +1036,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         if self.use_moe:
             self.norm_moe_geo = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.rotary_emb = Qwen2VLRotaryEmbedding(config=config)
+        self.gradient_checkpointing = False
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1236,13 +1237,30 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         all_hidden_states = () if output_hidden_states else None
 
         for idx_l, decoder_layer in enumerate(self.layers):
-            packed_sequence = decoder_layer(
-                packed_sequence=packed_sequence,
-                sample_lens=sample_lens,
-                attention_mask=attention_mask,
-                packed_position_embeddings=packed_position_embeddings,
-                **extra_inputs
-            )
+            if self.gradient_checkpointing and self.training:
+                # This packed training path bypasses the upstream Qwen2-VL
+                # decoder loop, so it must honor the checkpointing switch here.
+                def layer_forward(sequence, layer=decoder_layer):
+                    return layer(
+                        packed_sequence=sequence,
+                        sample_lens=sample_lens,
+                        attention_mask=attention_mask,
+                        packed_position_embeddings=packed_position_embeddings,
+                        **extra_inputs
+                    )
+
+                packed_sequence = self._gradient_checkpointing_func(
+                    layer_forward,
+                    packed_sequence,
+                )
+            else:
+                packed_sequence = decoder_layer(
+                    packed_sequence=packed_sequence,
+                    sample_lens=sample_lens,
+                    attention_mask=attention_mask,
+                    packed_position_embeddings=packed_position_embeddings,
+                    **extra_inputs
+                )
 
             if output_hidden_states:
                 if idx_l in intermediate_layers:

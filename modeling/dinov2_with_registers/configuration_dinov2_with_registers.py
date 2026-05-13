@@ -21,7 +21,31 @@
 # limitations under the License.
 
 from transformers.configuration_utils import PretrainedConfig
-from transformers.utils.backbone_utils import BackboneConfigMixin, get_aligned_output_features_output_indices
+from transformers.utils.backbone_utils import BackboneConfigMixin
+
+
+try:
+    from transformers.utils.backbone_utils import get_aligned_output_features_output_indices
+except Exception:
+    # compatibility fallback for transformers without this helper
+    def get_aligned_output_features_output_indices(out_features, out_indices, stage_names):
+        if out_features is None and out_indices is None:
+            return [stage_names[-1]], [len(stage_names) - 1]
+
+        if out_features is not None and out_indices is None:
+            out_indices = [stage_names.index(feature) for feature in out_features]
+        elif out_indices is not None and out_features is None:
+            out_indices = [idx % len(stage_names) if idx < 0 else idx for idx in out_indices]
+            out_features = [stage_names[idx] for idx in out_indices]
+
+        if out_features is not None and out_indices is not None:
+            if len(out_features) != len(out_indices):
+                raise ValueError("out_features and out_indices should have the same length if both are set")
+            for idx, feature in zip(out_indices, out_features):
+                if stage_names[idx] != feature:
+                    raise ValueError("out_features and out_indices should correspond to the same stages")
+
+        return list(out_features), list(out_indices)
 
 
 class Dinov2WithRegistersConfig(BackboneConfigMixin, PretrainedConfig):

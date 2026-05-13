@@ -108,6 +108,12 @@ class Qwen2VLRotaryEmbedding(nn.Module):
             self.rope_type = config.rope_scaling.get("rope_type", config.rope_scaling.get("type"))
         else:
             self.rope_type = "default"
+        if self.rope_type not in ROPE_INIT_FUNCTIONS:
+            # compatibility fallback for rope configs introduced by newer checkpoints
+            if self.rope_type in {"mrope", "default", None}:
+                self.rope_type = "linear"
+            else:
+                self.rope_type = "linear"
         self.max_seq_len_cached = config.max_position_embeddings
         self.original_max_seq_len = config.max_position_embeddings
         self.config = config

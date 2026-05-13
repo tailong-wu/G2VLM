@@ -36,12 +36,22 @@ from transformers.image_utils import (
     ImageInput,
     PILImageResampling,
     SizeDict,
-    VideoInput,
     get_image_size,
-    make_batched_videos,
     make_flat_list_of_images,
     valid_images,
 )
+try:
+    from transformers.image_utils import VideoInput, make_batched_videos
+except Exception:
+    # compatibility fallback for older transformers versions
+    VideoInput = Union[List, object]
+
+    def make_batched_videos(videos):
+        if videos is None:
+            return videos
+        if isinstance(videos, (list, tuple)):
+            return list(videos)
+        return [videos]
 from transformers.processing_utils import Unpack
 from transformers.utils import (
     TensorType,

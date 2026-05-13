@@ -32,7 +32,43 @@ from transformers.models.dinov2.modeling_dinov2 import (
 from transformers.configuration_utils import PretrainedConfig
 from transformers.modeling_outputs import BackboneOutput, ImageClassifierOutput
 from transformers.utils import logging, torch_int
-from transformers.utils.backbone_utils import BackboneConfigMixin, get_aligned_output_features_output_indices
+from transformers.utils.backbone_utils import BackboneConfigMixin
+
+
+def _get_aligned_output_features_output_indices(out_features, out_indices, stage_names):
+    """Compatibility helper for transformers versions without the upstream helper.
+
+    The helper is available in some transformers versions imported by third_party/G2VLM.
+    Here we keep a tiny fallback to align out_features/out_indices with stage_names.
+    """
+
+    if out_features is None and out_indices is None:
+        out_features = [stage_names[-1]]
+        out_indices = [len(stage_names) - 1]
+        return out_features, out_indices
+
+    if out_features is not None and out_indices is None:
+        out_indices = [stage_names.index(feature) for feature in out_features]
+    elif out_indices is not None and out_features is None:
+        normalized_indices = [idx % len(stage_names) if idx < 0 else idx for idx in out_indices]
+        out_features = [stage_names[idx] for idx in normalized_indices]
+        out_indices = normalized_indices
+
+    if out_features is not None and out_indices is not None:
+        if len(out_features) != len(out_indices):
+            raise ValueError("out_features and out_indices should have the same length if both are set")
+        for idx, feature in zip(out_indices, out_features):
+            if stage_names[idx] != feature:
+                raise ValueError("out_features and out_indices should correspond to the same stages")
+
+    return list(out_features), list(out_indices)
+
+
+try:
+    from transformers.utils.backbone_utils import get_aligned_output_features_output_indices
+except Exception:
+    # fallback for newer transformers without this helper function
+    get_aligned_output_features_output_indices = _get_aligned_output_features_output_indices
 
 
 logger = logging.get_logger(__name__)

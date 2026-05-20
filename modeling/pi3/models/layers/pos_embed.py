@@ -104,7 +104,10 @@ def interpolate_pos_embed(model, checkpoint_model):
 #----------------------------------------------------------
 
 try:
-    from models.curope import cuRoPE2D
+    try:
+        from modeling.pi3.models.curope import cuRoPE2D
+    except ImportError:
+        from models.curope import cuRoPE2D
     RoPE2D = cuRoPE2D
 except ImportError:
     print('Warning, cannot find cuda-compiled version of RoPE2D, using a slow pytorch version instead')

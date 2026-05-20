@@ -16,6 +16,7 @@ dist
 *.ply
 *.whl
 *.zip
+*.so
 
 
 #slurm out 
